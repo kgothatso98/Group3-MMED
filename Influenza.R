@@ -52,3 +52,63 @@ ggplot(FluepiWeek, aes(x = WeekLabel, y = n, fill = Year)) +
   theme(
     axis.text.x = element_text(angle = 90, vjust = 0.5, size = 8)
   )
+View(CapeFLU)
+###################################################################################
+FLUepicurve_2 <- CapeFLU %>%
+  filter(death_date >= as.Date("1918-09-01") & death_date <= as.Date("1919-01-31")) %>%
+  filter(Causes.of.death2 == "Pneumonia/Influenza") %>%
+  group_by(RACE, death_date) %>%
+  summarise(n = n())
+
+
+ggplot(FLUepicurve_2, aes(x = death_date, y = n, fill = RACE)) +
+  geom_col() +
+  scale_x_date(
+    date_breaks = "1 month",
+    date_labels = "%b"
+  ) +
+  labs(
+    x = "Months",
+    y = "Number of  Weekly Deaths",
+    title = "Daily Pneumonia/Influenza Deaths"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 0, vjust = 0.5)
+  )
+#################################################################################
+#Changing the word "RACE" to "Race" so we have the same column named with 
+#the same name
+FLUepicurve_2 <- FLUepicurve_2 %>%
+  rename(Race = RACE)
+View(FLUepicurve_2)
+
+#combined/merge the 2 datasets such that we can have a single dataset
+merged_data <- FLUepicurve_2 %>%
+  left_join(data_Race, by = "Race")
+merged_data
+#divide the number of deaths per day by the population of each group
+merged_data <- merged_data %>%
+  mutate(death_rate = (n / Population) * 100000)
+merged_data
+View(merged_data)
+
+ggplot(merged_data, aes(x = death_date, y = death_rate, color = Race)) +
+  geom_col() +
+  labs(
+    x = "Date",
+    y = "Deaths per 100,000 Population",
+    title = "Daily Death Rates by Race Group"
+  ) +
+  theme_minimal()
+
+
+ggplot(merged_data, aes(x = death_rate, fill = Race)) +
+  geom_density(alpha = 0.5) +
+  labs(
+    x = "Deaths per 100,000 Population",
+    y = "Density",
+    title = "Smoothed Distribution of Daily Death Rates by Race"
+  ) +
+  scale_fill_manual(values = c("White" = "black", "Other" = "lightblue")) +
+  theme_minimal()
