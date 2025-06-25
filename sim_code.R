@@ -95,7 +95,8 @@ death_dt <- y_tidy |>
 library(ggplot2)
 
 ggplot(death_dt, aes(x = time, y = deaths)) +
-  geom_line(color = "red", size = 1.2) +
+  geom_line(color = "red", linewidth = 1.2) +
+
   labs(title = "All Deaths Over Time", y = "Deaths", x = "Time") +
   theme_minimal()
 
@@ -141,7 +142,7 @@ sir <- odin({
   n_Iout <- Binomial(I, p_Ideath + p_Recovery)
   n_deathsI <- Binomial(n_Iout, p_Ideath/(p_Ideath + p_Recovery))
   n_Recover <- n_Iout - n_deathsI
-  
+
   #random probs
   p_Sout <- 1 - exp(-(lam) * dt)
   p_Ideath <- 1 - exp(-(mu_d)*dt)
@@ -161,7 +162,9 @@ sir <- odin({
  
   # Comparison to data
   deaths <- data()
-  deaths ~ Poisson(all_deaths)
+
+  deaths ~ Poisson(all_deaths)# use a Poisson to ask “what is the probability of 
+
   
 }, quiet = TRUE)
 
@@ -172,6 +175,71 @@ pars <- list(
   I0 = 100
 )
 
+time_start <- -1
+unfilter <- dust_unfilter_create(sir(), time_start, data)
+dust_likelihood_run(unfilter, pars)
+
+################################################################################
+#Inference with particle MCMC (pMCMC)
+prior <- monty_dsl({
+  beta ~ Exponential(mean = 0.3)
+  gam ~ Exponential(mean = 0.1)
+  mu_d ~ Exponential(mean = 0.1)
+})
+#describe how a vector of statistical parameters (here beta and gamma) 
+#will be converted into the inputs that the sir system needs to run
+sir_packer <- monty_packer(c("beta", "gam","mu_d"), fixed = list(I0 = 5))
+
+#convert from a list of name-value pairs suitable for initialising a dust2 
+#system into a vector of parameters suitable for use with monty
+sir_packer$pack(pars)
+
+#monty model
+likelihood <- dust_likelihood_monty(unfilter, sir_packer)
+likelihood
+
+#compute the likelihood
+monty_model_density(likelihood, c(0.2, 0.1, 0.3))
+
+# combining the prior and the likelihood to create a posterior
+posterior <- prior + likelihood
+
+#Proposes new parameter values at each step with variance 0.02
+sampler <- monty_sampler_random_walk(diag(3) * 0.01)
+
+#List to vector
+sir_packer$pack(pars)
+
+#vector to list
+sir_packer$unpack(c(0.2, 0.1, 0.3))
+#We can now run an MCMC for 100 samples,gives a set of acccepted parameter sets for exploring posterior dist
+samples <- monty_sample(posterior, sampler, 5000,
+                        initial = sir_packer$pack(pars))
+
+plot(samples$density, type = "l")
+
+
+plot(t(drop(samples$pars)), pch = 19, col = "#00000055")
+
+
+######################################
+sir_packer
+
+library(mcstate)
+
+sir_packer <- mcstate::dust_packet(
+  model = sir,      # your odin model function
+  pars = c("beta", "gam", "mu_d", "I0")  # the parameters you want to estimate
+)
+
+
+#reusing our packer, prior and sampler objects
+
+likelihood_det <- dust_likelihood_monty(unfilter, sir_packer)
+?sir_packer
+posterior_det <- prior + likelihood_det
+samples_det <- monty_sample(posterior_det, sampler, 1000,
+                            initial = sir_packer$pack(pars))
 time <- seq(1, length(data$deaths))
 
 time_start <- -1
@@ -180,5 +248,4 @@ unfilter <- dust_unfilter_create(sir(), 0, data)
 
 unfilter <- dust_unfilter_create(sir(), time_start , data)
 dust_likelihood_run(unfilter, pars)
-
 
