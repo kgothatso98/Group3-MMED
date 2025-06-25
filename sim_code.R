@@ -96,6 +96,7 @@ library(ggplot2)
 
 ggplot(death_dt, aes(x = time, y = deaths)) +
   geom_line(color = "red", linewidth = 1.2) +
+
   labs(title = "All Deaths Over Time", y = "Deaths", x = "Time") +
   theme_minimal()
 
@@ -137,12 +138,11 @@ sir <- odin({
   
   
   #random outs
-  n_Sout <-  S * p_Sout
-  n_Iout <- I * (p_Ideath + p_Recovery)
-  n_deathsI <- n_Iout * (p_Ideath / (p_Ideath + p_Recovery))
+  n_Sout <- Binomial(S, p_Sout)
+  n_Iout <- Binomial(I, p_Ideath + p_Recovery)
+  n_deathsI <- Binomial(n_Iout, p_Ideath/(p_Ideath + p_Recovery))
   n_Recover <- n_Iout - n_deathsI
-  
-  
+
   #random probs
   p_Sout <- 1 - exp(-(lam) * dt)
   p_Ideath <- 1 - exp(-(mu_d)*dt)
@@ -162,8 +162,9 @@ sir <- odin({
  
   # Comparison to data
   deaths <- data()
+
   deaths ~ Poisson(all_deaths)# use a Poisson to ask “what is the probability of 
-                              #observing this many cases with a mean equal to our modelled number of daily cases”.
+
   
 }, quiet = TRUE)
 
@@ -239,3 +240,12 @@ likelihood_det <- dust_likelihood_monty(unfilter, sir_packer)
 posterior_det <- prior + likelihood_det
 samples_det <- monty_sample(posterior_det, sampler, 1000,
                             initial = sir_packer$pack(pars))
+time <- seq(1, length(data$deaths))
+
+time_start <- -1
+
+unfilter <- dust_unfilter_create(sir(), 0, data)
+
+unfilter <- dust_unfilter_create(sir(), time_start , data)
+dust_likelihood_run(unfilter, pars)
+
