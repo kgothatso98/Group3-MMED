@@ -58,7 +58,7 @@ span_sys <- dust2::dust_system_create(
 	  N0 = 230600,
     dt = 1
 	),
-	n_particles = 2,
+	n_particles = 20,
 	n_groups = 1,
 	seed = NULL,
 	deterministic = TRUE,
@@ -69,7 +69,9 @@ time <- 0:200
 dust2::dust_system_set_state_initial(span_sys)
 
 dust2::dust_system_set_time(span_sys, 0)
+
 y <- dust2::dust_system_simulate(span_sys, time )
+
 
 
 
@@ -117,7 +119,13 @@ ggplot(data = y_tidy, aes(x = time , y = All_deaths ),) + geom_point(alpha= .3)
    #                                                                               x = "Time(days)",
     #                                                                              y = "All deaths")
 
-view(y_tidy)
+# sim_deaths_data <- y_tidy |> select(time,All_deaths)
+
+# saveRDS(y_tidy |> select(time,All_deaths), file = "sim_deaths_data.RDS")
+
+sim_deaths_data <- readRDS('sim_deaths_data.RDS')
+plot(sim_deaths_data$time,sim_deaths_data$All_deaths)
+# view(y_tidy)
 # c(1,2,3,4,5) |> sum()
 # sum(c(1,2,3,4,5))
 
@@ -127,8 +135,8 @@ view(y_tidy)
 # I
 # R
 library(dust2)
-  ?dust_system_simulate
-help("plot")
+  # ?dust_system_simulate
+# help("plot")
 plot(y_tidy$time, y_tidy$All_deaths)
 
 death_dt <- data.frame(y_tidy$time, y_tidy$All_deaths )
@@ -137,10 +145,74 @@ death_dt
 names(death_dt) <- c("time", "All_deaths")
 death_dt
 
+y_tidy
+
+plot
+
 plot(All_deaths ~ time, death_dt, pch = 19, las = 1,
      xlab = "Time (days)", ylab = "All deaths")
 
-deaths <- dust_unpack_state(span_sys, y)$All_deaths
-matplot(time, t(All_deaths), type = "l", lty = 1, col = "#00000055",
-        xlab = "Time (days)", ylab = "Cases", las = 1)
-points(cases ~ time, data, pch = 19, col = "red")
+deaths <- dust_unpack_state(span_sys, y)$all_deaths
+
+matplot(time, t(death2), type = "l", lty = 1, col = "#00000055",
+        xlab = "Time (days)", ylab = "All deaths", las = 1)
+points(All_deaths ~ time, sim_deaths_data, pch = 19, col = "red")
+
+# sim_deaths_data ## -- "data"
+# death2 ## -- "model output"
+# now we want to adjust parameters using MCMC to fit the model to the data
+
+death2 <- dust_unpack_state(span_sys, y)$all_deaths
+span_flu <- odin2::odin({
+  
+  initial(N) <- N0
+  initial(S) <- S0
+  # initial(E) <- E0
+  initial(I) <- I0
+  initial(R) <- R0
+  
+  initial(new_cases, zero_every = 7) <- 0
+  # initial(new_vaccination, zero_every = 7) <- 0
+  initial(all_deaths, zero_every = 1) <- 0
+  initial(all_recovery, zero_every = 7) <- 0
+  
+  ## process flows
+  #birth <- parameter(10000/365.25)
+  beta <- parameter(0.4)
+  lam <- beta * I / N
+  
+  gam <- parameter(1/10) # recovery
+  mu_d <- parameter(1/3) # disease death
+  
+  N0 <- parameter(230600)
+  I0 <- 1
+  R0 <- 0
+  S0 <- N0 - I0 - R0
+  
+  p_Sout <- 1 - exp(-(lam) * dt)
+  p_Ideath <- 1 - exp(-(mu_d)*dt)
+  p_Recovery <- 1- exp(-(gam)*dt)
+  
+  n_Sout <- Binomial(S, p_Sout)
+  n_Iout <- Binomial(I, p_Ideath + p_Recovery)
+  
+  #n_deathsS <- Binomial(n_Sout, mu_b/(lam + tau + mu_b))
+  n_deathsI <- Binomial(n_Iout, p_Ideath/(p_Ideath + p_Recovery))
+  n_Recover <- n_Iout - n_deathsI
+  
+  update(N) <- N - n_deathsI
+  update(S) <- S - n_Sout
+  update(I) <- I - n_deathsI - n_Recover + n_Sout
+  update(R) <- R + n_Recover
+  
+  update(new_cases) <- new_cases + n_Sout 
+  #update(new_vaccination) <- new_vaccination + n_vaccine
+  update(all_deaths) <- all_deaths + n_deathsI
+  update(all_recovery) <- all_recovery + n_Recover
+  
+  # Comparison to data
+  All_deaths <- data()
+  All_deaths ~ Poisson(all_deaths)
+  
+})
+
