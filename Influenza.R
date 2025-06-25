@@ -140,3 +140,6 @@ ggplot(FLUepicurve_2, aes(x = death_date, y = Death_prop, fill = Race)) +
     axis.text.x = element_text(angle = 0, vjust = 0.5)
   )
 #################################################################################
+FLUepicurve$time <- 0:148
+FLUepicurve$ma_7day <- ceiling(FLUepicurve$ma_7day)
+FLUepicurve$ma_7day[is.na(FLUepicurve$ma_7day)] <- FLUepicurve$n[is.na(FLUepicurve$ma_7day)]
