@@ -52,7 +52,7 @@ span_flu <- odin2::odin({
 span_sys <- dust2::dust_system_create(
 	span_flu(),
 	pars = list(
-	  beta = 0.5,
+	  beta = 1.5,
 	  gam = 1 / 10,
 	  mu_d = 1 / 3,
 	  N0 = 230600,
@@ -61,7 +61,7 @@ span_sys <- dust2::dust_system_create(
 	n_particles = 20,
 	n_groups = 1,
 	seed = NULL,
-	deterministic = TRUE,
+	deterministic = FALSE,
 #	n_threads = 8
 )
 
@@ -154,15 +154,18 @@ plot(All_deaths ~ time, death_dt, pch = 19, las = 1,
 
 deaths <- dust_unpack_state(span_sys, y)$all_deaths
 
-matplot(time, t(death2), type = "l", lty = 1, col = "#00000055",
+matplot(time, t(deaths), type = "l", lty = 1, col = "#00000055",
         xlab = "Time (days)", ylab = "All deaths", las = 1)
 points(All_deaths ~ time, sim_deaths_data, pch = 19, col = "red")
 
 # sim_deaths_data ## -- "data"
 # death2 ## -- "model output"
 # now we want to adjust parameters using MCMC to fit the model to the data
+data <- sim_deaths_data
 
-death2 <- dust_unpack_state(span_sys, y)$all_deaths
+
+##FITTING 
+#function definition including comaparison of data
 span_flu <- odin2::odin({
   
   initial(N) <- N0
@@ -214,5 +217,71 @@ span_flu <- odin2::odin({
   All_deaths <- data()
   All_deaths ~ Poisson(all_deaths)
   
+}, quiet = TRUE)
+
+span_sys <- dust2::dust_system_create(
+  span_flu(),
+  pars = list(
+    beta = 0.5,
+    gam = 1 / 10,
+    mu_d = 1 / 3,
+    N0 = 230600,
+    dt = 1
+  ),
+  n_particles = 20,
+  n_groups = 1,
+  seed = NULL,
+  deterministic = TRUE,
+  #	n_threads = 8
+)
+
+time <- 0:200
+dust2::dust_system_set_state_initial(span_sys)
+
+dust2::dust_system_set_time(span_sys, 0)
+
+y <- dust2::dust_system_simulate(span_sys, time )
+
+
+
+
+
+library(tidyverse)
+dim(y)
+
+# df <- as.data.frame(t(y[, p, ]))
+# colnames(df) <- c("N0", "S", "I", "R", "New_cases", "All_deaths", "All_recovery")  # adjust as needed
+
+# Convert to a tidy tibble
+y_tidy <- purrr::map_dfr(1:dim(y)[2], function(p) {
+  df <- as.data.frame(t(y[, p, ]))
+  colnames(df) <- c("N0", "S", "I", "R", "New_cases", "All_deaths", "All_recovery")  # adjust as needed
+  df$time <- 0:(nrow(df) - 1)
+  df$particle <- p
+  df
 })
 
+y_tidy <- y_tidy |> filter(particle == 1)
+
+
+#outbreak_df <- data.frame(t(y))
+
+#names(outbreak_df) <- c("N0", "S", "I", "R" , "New_case" ,"All_deaths", "All_recovery")
+
+#outbreak_df
+#create a new column based on the row number, to represent the time step
+
+y_tidy |> ggplot(aes(x = time , y = I)) + geom_line()
+y_tidy1 <- y_tidy |> 
+  group_by(time) |> 
+  summarise(I=mean(I))
+# View(y_tidy)
+
+y_tidy1 |> ggplot(aes(x = time , y = I) ) + geom_line(col="red")
+
+ggplot(data = y_tidy, aes(x = time , y = I ),) + geom_line(alpha= .3) + 
+  geom_line(data = y_tidy1, aes(x = time, y= I), col = "blue", size = 1.5) + labs(title = "Infected over time",
+                                                                                  x = "Time(days)",
+                                                                                  y = "Number of Infected")
+
+ggplot(data = y_tidy, aes(x = time , y = All_deaths ),) + geom_point(alpha= .3)  
