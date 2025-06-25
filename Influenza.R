@@ -6,8 +6,43 @@ library(dplyr)
 FLUepicurve <- CapeFLU %>%
   filter(death_date >= as.Date("1918-09-01") & death_date <= as.Date("1919-01-31")) %>%
   filter(Causes.of.death2 == "Pneumonia/Influenza") %>%
+  group_by(death_date, RACE) %>%
+  summarise(n = n())%>%
+  mutate(ma_7day = zoo::rollmean(n, k = 7, fill = NA, align = "center")) %>%
+  ungroup()
+FLUepicurve$ma_7day <- ceiling(FLUepicurve$ma_7day)
+FLUepicurve$ma_7day[is.na(FLUepicurve$ma_7day)] <- FLUepicurve$n[is.na(FLUepicurve$ma_7day)]
+FLUepicurve$time <-  0:(nrow(FLUepicurve)-1)
+##################################################################################
+#EpiCurve for Race = White
+FLUepiCurve_W <- CapeFLU %>%
+  filter(death_date >= as.Date("1918-09-01") & death_date <= as.Date("1919-01-31")) %>%
+  filter(Causes.of.death2 == "Pneumonia/Influenza") %>%
+  filter(RACE == "White") %>%
   group_by(death_date) %>%
-  summarise(n = n())
+  summarise(n = n()) %>%
+  mutate(ma_7day = zoo::rollmean(n, k = 7, fill = NA, align = "center")) %>%
+  ungroup()
+FLUepiCurve_W$ma_7day <- ceiling(FLUepiCurve_W$ma_7day)
+FLUepiCurve_W$ma_7day[is.na(FLUepiCurve_W$ma_7day)] <- FLUepiCurve_W$n[is.na(FLUepiCurve_W$ma_7day)]
+FLUepiCurve_W$time <- 0:(nrow(FLUepiCurve_W)-1)
+##################################################################################
+#EpiCurve for Race = Other
+FLUepicurve_O <- CapeFLU %>%
+  filter(death_date >= as.Date("1918-09-01") & death_date <= as.Date("1919-01-31")) %>%
+  filter(Causes.of.death2 == "Pneumonia/Influenza") %>%
+  filter(RACE == "Other") %>%
+  group_by(death_date) %>%
+  summarise(n = n()) %>%
+  mutate(ma_7day = zoo::rollmean(n, k = 7, fill = NA, align = "center")) %>%
+  ungroup()
+FLUepicurve_O$ma_7day <- ceiling(FLUepicurve_O$ma_7day)
+FLUepicurve_O$ma_7day[is.na(FLUepicurve_O$ma_7day)] <- FLUepicurve_O$n[is.na(FLUepicurve_O$ma_7day)]
+FLUepicurve_O$time <-  0:(nrow(FLUepicurve_O)-1)
+
+
+
+
 View(FLUepicurve)
 ggplot(FLUepicurve, aes(x = death_date, y = n)) +
   geom_col(fill = "tomato") +
@@ -140,6 +175,3 @@ ggplot(FLUepicurve_2, aes(x = death_date, y = Death_prop, fill = Race)) +
     axis.text.x = element_text(angle = 0, vjust = 0.5)
   )
 #################################################################################
-FLUepicurve$time <- 0:148
-FLUepicurve$ma_7day <- ceiling(FLUepicurve$ma_7day)
-FLUepicurve$ma_7day[is.na(FLUepicurve$ma_7day)] <- FLUepicurve$n[is.na(FLUepicurve$ma_7day)]
