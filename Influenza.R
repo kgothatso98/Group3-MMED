@@ -11,6 +11,7 @@ FLUepicurve <- CapeFLU %>%
 View(FLUepicurve)
 ggplot(FLUepicurve, aes(x = death_date, y = n)) +
   geom_col(fill = "tomato") +
+  geom_line(aes(x=death_date, y = ma_7day)) +
   scale_x_date(
     date_breaks = "1 month",
     date_labels = "%b"
@@ -27,7 +28,11 @@ ggplot(FLUepicurve, aes(x = death_date, y = n)) +
 FLUepicurve <- FLUepicurve %>%
   mutate(EpiWeek=isoweek(death_date))
 FLUepicurve <- FLUepicurve %>%
-  mutate(EpiYear=year(death_date))
+ # mutate(EpiYear=year(death_date)) %>%
+  mutate(
+    ma_7day = zoo::rollmean(n, k = 7, fill = NA, align = "center")
+  ) %>%
+  ungroup()
 FluepiWeek <- FLUepicurve %>% 
   group_by(EpiYear, EpiWeek) %>% 
   summarise(n = sum(n)) %>% 
@@ -82,18 +87,18 @@ ggplot(FLUepicurve_2, aes(x = death_date, y = n, fill = RACE)) +
 FLUepicurve_2 <- FLUepicurve_2 %>%
   rename(Race = RACE)
 View(FLUepicurve_2)
-
+################################################################################
 #combined/merge the 2 datasets such that we can have a single dataset
 merged_data <- FLUepicurve_2 %>%
   left_join(data_Race, by = "Race")
 merged_data
 #divide the number of deaths per day by the population of each group
 merged_data <- merged_data %>%
-  mutate(death_rate = (n / Population) * 100000)
+  mutate(Death_prop = (n / Population) * 100000)
 merged_data
 View(merged_data)
 
-ggplot(merged_data, aes(x = death_date, y = death_rate, color = Race)) +
+ggplot(merged_data, aes(x = death_date, y = Death_prop, color = Race)) +
   geom_col() +
   labs(
     x = "Date",
@@ -103,7 +108,7 @@ ggplot(merged_data, aes(x = death_date, y = death_rate, color = Race)) +
   theme_minimal()
 
 
-ggplot(merged_data, aes(x = death_rate, fill = Race)) +
+ggplot(merged_data, aes(x = Death_prop, fill = Race)) +
   geom_density(alpha = 0.5) +
   labs(
     x = "Deaths per 100,000 Population",
@@ -112,3 +117,26 @@ ggplot(merged_data, aes(x = death_rate, fill = Race)) +
   ) +
   scale_fill_manual(values = c("White" = "black", "Other" = "lightblue")) +
   theme_minimal()
+#################################################################################
+#add population to daily deaths
+FLUepicurve_2 <- FLUepicurve_2 %>%
+  left_join(data_Race, by="Race")
+
+FLUepicurve_2 <- FLUepicurve_2 %>% 
+  mutate(Death_prop = 100000*(n/pop.size))
+ggplot(FLUepicurve_2, aes(x = death_date, y = Death_prop, fill = Race)) +
+  geom_col() +
+  scale_x_date(
+    date_breaks = "1 month",
+    date_labels = "%b"
+  ) +
+  labs(
+    x = "Months",
+    y = "Deaths Per 100000",
+    title = "Daily Pneumonia/Influenza Deaths"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 0, vjust = 0.5)
+  )
+#################################################################################
