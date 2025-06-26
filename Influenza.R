@@ -6,7 +6,7 @@ library(dplyr)
 FLUepicurve <- CapeFLU %>%
   filter(death_date >= as.Date("1918-09-01") & death_date <= as.Date("1919-01-31")) %>%
   filter(Causes.of.death2 == "Pneumonia/Influenza") %>%
-  group_by(death_date, RACE) %>%
+  group_by(death_date) %>%
   summarise(n = n())%>%
   mutate(ma_7day = zoo::rollmean(n, k = 7, fill = NA, align = "center")) %>%
   ungroup()
