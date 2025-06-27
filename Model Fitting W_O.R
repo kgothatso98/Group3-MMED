@@ -120,8 +120,8 @@ objFXN <- function(fit.params ## paramters to fit
 
 ##########################################################################################
 # Initial guess
-guess.params <- c(log_beta_oo = log(3),log_beta_ww = log(3),log_beta_wo = log(3),log_beta_ow = log(3),
-                  log_mu_o = log(1/60),log_mu_w = log(1/60) )
+guess.params <- c(log_beta_oo = log(3),log_beta_ow = log(0.01),log_beta_ww = log(1),log_beta_wo = log(0.01),
+                  log_mu_o = log(1/30),log_mu_w = log(1/60) )
 init.pars <- guess.params
 
 
@@ -152,6 +152,7 @@ optim.vals <- optim(
 MLEfits <- optim.vals$par
 exp(unname(MLEfits))
 
+#FITSWELL <- MLEfits
 ########################################################################################
 # Simulate fitted model and plot
 fitDat <- simEpidemic(init_state, parms = subsParms(MLEfits, disease_params()))
@@ -159,23 +160,43 @@ fitDat <- simEpidemic(init_state, parms = subsParms(MLEfits, disease_params()))
 #########################################################################################
 # Plot
 #library(ggplot2)
-ggplot(fitDat, aes(x = time, y = daily_deaths_o)) + 
-  geom_line() + 
-  geom_line(data = FLUepiCurve_O, aes(x = time, y = ma_7day), color = "red") +
-  labs(title = "Fitted vs Observed Deaths", y = "Daily Deaths", x = "Time") +
-  theme_minimal()
+combinedata <- data.frame(time = c(fitDat$time, FLUepiCurve_O$time), 
+                          daily_deaths=c(fitDat$daily_deaths_o, FLUepiCurve_O$ma_7day),
+                          output=c(rep("model", nrow(fitDat)), rep("data", nrow(FLUepiCurve_O))))
+combinedata <- combinedata %>% left_join(time.data, by="time")
 
-# legend("topleft", 
-#        legend = c("Observed Deaths", "Fitted Deaths"), 
-#        col = c("#00", "red"), 
-#        pch = 19, 
-#        pt.cex = 1.5, 
-#        bty = "n")
+ggplot(combinedata, aes(x = death_date, y = daily_deaths, col=output)) + 
+  geom_line(size = 1) + 
+  labs(title = "Fitted vs Observed Deaths - Other", y = "Daily Deaths", x = "Time (in days)") +
+ theme_minimal()+
+  theme(
+    plot.title = element_text(size = 18, face = "bold"),     # Title font size
+    axis.title.x = element_text(size = 16),                  # X-axis label font size
+    axis.title.y = element_text(size = 16),                  # Y-axis label font size
+    legend.title = element_blank(),
+    legend.text = element_text(size = 14),
+    legend.position = c(0.8, 0.8)
+  )
 
 
-ggplot(fitDat, aes(x = time, y = daily_deaths_w)) + 
-  geom_line() + 
-  geom_line(data = FLUepiCurve_W, aes(x = time, y = ma_7day), color = "red") +
-  labs(title = "Fitted vs Observed Deaths", y = "Daily Deaths", x = "Time") +
-  theme_minimal()
+
+combinedata <- data.frame(time = c(fitDat$time, FLUepiCurve_W$time), 
+                          daily_deaths=c(fitDat$daily_deaths_w, FLUepiCurve_W$ma_7day),
+                          output=c(rep("model", nrow(fitDat)), rep("data", nrow(FLUepiCurve_W))))
+combinedata <- combinedata %>% left_join(time.data, by="time")
+
+ggplot(combinedata, aes(x = death_date, y = daily_deaths, col=output)) + 
+  geom_line(size = 1) + 
+  labs(title = "Fitted vs Observed Deaths - White", y = "Daily Deaths", x = "Time (in days)", lwd = 3) +
+  theme_minimal()+
+  theme(
+    plot.title = element_text(size = 18, face = "bold"),     # Title font size
+    axis.title.x = element_text(size = 16),                  # X-axis label font size
+    axis.title.y = element_text(size = 16),                  # Y-axis label font size
+    legend.title = element_blank(),
+    legend.text = element_text(size = 14),
+    legend.position = c(0.8, 0.8)
+  )
+ 
+
 
