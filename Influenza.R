@@ -13,10 +13,10 @@ FLUepicurve <- CapeFLU %>%
   group_by(death_date) %>%
   summarise(n = n())%>%
   mutate(ma_7day = zoo::rollmean(n, k = 7, fill = NA, align = "center")) %>%
-  ungroup()
+  ungroup() %>% 
+  left_join(time.data, by="death_date")
 FLUepicurve$ma_7day <- ceiling(FLUepicurve$ma_7day)
 FLUepicurve$ma_7day[is.na(FLUepicurve$ma_7day)] <- FLUepicurve$n[is.na(FLUepicurve$ma_7day)]
-FLUepicurve$time <-  0:(nrow(FLUepicurve)-1)
 ##################################################################################
 #EpiCurve for Race = White
 FLUepiCurve_W <- CapeFLU %>%
@@ -26,10 +26,10 @@ FLUepiCurve_W <- CapeFLU %>%
   group_by(death_date) %>%
   summarise(n = n()) %>%
   mutate(ma_7day = zoo::rollmean(n, k = 7, fill = NA, align = "center")) %>%
-  ungroup()
+  ungroup()%>% 
+  left_join(time.data, by="death_date")
 FLUepiCurve_W$ma_7day <- ceiling(FLUepiCurve_W$ma_7day)
 FLUepiCurve_W$ma_7day[is.na(FLUepiCurve_W$ma_7day)] <- FLUepiCurve_W$n[is.na(FLUepiCurve_W$ma_7day)]
-FLUepiCurve_W$time <- 0:(nrow(FLUepiCurve_W)-1)
 ##################################################################################
 #EpiCurve for Race = Other
 FLUepicurve_O <- CapeFLU %>%
@@ -39,10 +39,10 @@ FLUepicurve_O <- CapeFLU %>%
   group_by(death_date) %>%
   summarise(n = n()) %>%
   mutate(ma_7day = zoo::rollmean(n, k = 7, fill = NA, align = "center")) %>%
-  ungroup()
+  ungroup()%>% 
+  left_join(time.data, by="death_date")
 FLUepicurve_O$ma_7day <- ceiling(FLUepicurve_O$ma_7day)
 FLUepicurve_O$ma_7day[is.na(FLUepicurve_O$ma_7day)] <- FLUepicurve_O$n[is.na(FLUepicurve_O$ma_7day)]
-FLUepicurve_O$time <-  0:(nrow(FLUepicurve_O)-1)
 
 
 
